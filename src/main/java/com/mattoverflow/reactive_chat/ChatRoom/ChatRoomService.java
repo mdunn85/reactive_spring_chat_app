@@ -6,8 +6,6 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.UUID;
-
 @Log4j2
 @Service
 @AllArgsConstructor
@@ -24,6 +22,6 @@ public class ChatRoomService {
     }
 
     public Mono<ChatRoom> insert(String name) {
-        return this.chatRoomRepository.save(new ChatRoom(UUID.randomUUID().toString(), name));
+        return this.chatRoomRepository.save(new ChatRoom(name));
     }
 }
