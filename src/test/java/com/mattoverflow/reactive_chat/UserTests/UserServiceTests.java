@@ -1,8 +1,11 @@
-package com.mattoverflow.reactive_chat.ChatRoomTests;
+package com.mattoverflow.reactive_chat.UserTests;
 
 import com.mattoverflow.reactive_chat.ChatRoom.ChatRoom;
 import com.mattoverflow.reactive_chat.ChatRoom.ChatRoomRepository;
 import com.mattoverflow.reactive_chat.ChatRoom.ChatRoomService;
+import com.mattoverflow.reactive_chat.User.User;
+import com.mattoverflow.reactive_chat.User.UserRepository;
+import com.mattoverflow.reactive_chat.User.UserService;
 import lombok.extern.log4j.Log4j2;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,35 +16,36 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.function.Predicate;
 
 @Log4j2
 @DataMongoTest
-@Import(ChatRoomService.class)
-public class ChatRoomServiceTest {
+@Import(UserService.class)
+public class UserServiceTests {
 
-    private final ChatRoomService service;
-    private final ChatRoomRepository repository;
+    private final UserService service;
+    private final UserRepository repository;
 
-    public ChatRoomServiceTest(@Autowired ChatRoomService service, @Autowired ChatRoomRepository repository){
+    public UserServiceTests(@Autowired UserService service, @Autowired UserRepository repository) {
         this.service = service;
         this.repository = repository;
     }
 
     @Test
-    public void getAll(){
+    public void getAll() {
 
         log.info("running  " + this.getClass().getName());
 
-        Flux<ChatRoom> saved = repository.saveAll(Flux.just(
-                new ChatRoom(UUID.randomUUID().toString(), "Test 1"),
-                new ChatRoom(UUID.randomUUID().toString(), "Test 2"),
-                new ChatRoom(UUID.randomUUID().toString(), "Test 3")));
+        Flux<User> saved = repository.saveAll(Flux.just(
+                new User("Test User 1"),
+                new User("Test User 2"),
+                new User("Test User 3")));
 
-        Flux<ChatRoom> composite = service.all().thenMany(saved);
+        Flux<User> composite = service.all().thenMany(saved);
 
-        Predicate<ChatRoom> match = chatRoom -> saved.any(saveItem -> saveItem.equals(chatRoom)).block();
+        Predicate<User> match = user -> saved.any(saveItem -> saveItem.equals(user)).block(Duration.ofSeconds(10));
 
         StepVerifier
                 .create(composite)
@@ -53,22 +57,22 @@ public class ChatRoomServiceTest {
 
     @Test
     public void save() {
-        Mono<ChatRoom> chatRoomMono = this.service.insert("Save test");
+        Mono<User> userMono = this.service.create("Save user test");
         StepVerifier
-                .create(chatRoomMono)
+                .create(userMono)
                 .expectNextMatches(saved -> StringUtils.hasText(saved.getId()))
                 .verifyComplete();
     }
 
     @Test
     public void getById() {
-        String test = "Get test";
-        Mono<ChatRoom> deleted = this.service
-                .insert(test)
+        String test = "Get user test";
+        Mono<User> deleted = this.service
+                .create(test)
                 .flatMap(saved -> this.service.get(saved.getId()));
         StepVerifier
                 .create(deleted)
-                .expectNextMatches(chatRoom -> StringUtils.hasText(chatRoom.getId()) && test.equalsIgnoreCase(chatRoom.getName()))
+                .expectNextMatches(user -> StringUtils.hasText(user.getId()) && test.equalsIgnoreCase(user.getName()))
                 .verifyComplete();
     }
 }

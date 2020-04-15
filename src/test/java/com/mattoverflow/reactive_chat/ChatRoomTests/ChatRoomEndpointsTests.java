@@ -18,7 +18,7 @@ import java.util.UUID;
 @WebFluxTest
 @Import({ChatRoomController.class,
         ChatRoomHandler.class, ChatRoomService.class})
-public class ChatRoomEndpointsTest {
+public class ChatRoomEndpointsTests {
 
     @Autowired
     private WebTestClient webTestClient;
