@@ -14,6 +14,7 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Predicate;
 
@@ -35,26 +36,39 @@ public class ChatRoomServiceTests {
 
         log.info("running  " + this.getClass().getName());
 
-        Flux<ChatRoom> saved = repository.saveAll(Flux.just(
+        List<ChatRoom> chatRoomsList = List.of(
                 new ChatRoom(UUID.randomUUID().toString(), "Test 1"),
                 new ChatRoom(UUID.randomUUID().toString(), "Test 2"),
-                new ChatRoom(UUID.randomUUID().toString(), "Test 3")));
+                new ChatRoom(UUID.randomUUID().toString(), "Test 3")
+        );
 
-        Flux<ChatRoom> composite = service.all().thenMany(saved);
-
-        Predicate<ChatRoom> match = chatRoom -> saved.any(saveItem -> saveItem.equals(chatRoom)).block(Duration.ofSeconds(10));
+        Flux<ChatRoom> savedChatRooms = repository.saveAll(chatRoomsList);
 
         StepVerifier
-                .create(composite)
-                .expectNextMatches(match)
-                .expectNextMatches(match)
-                .expectNextMatches(match)
+                .create(this.repository.deleteAll())
+                .verifyComplete();
+
+        StepVerifier
+                .create(savedChatRooms)
+                .expectNextCount(3)
+                .verifyComplete();
+
+        Flux<ChatRoom> serviceChatRooms = service.all();
+
+        StepVerifier
+                .create(serviceChatRooms)
+                .expectNextMatches(chatRoomsList::contains)
+                .expectNextMatches(chatRoomsList::contains)
+                .expectNextMatches(chatRoomsList::contains)
                 .verifyComplete();
     }
 
     @Test
     public void save() {
         Mono<ChatRoom> chatRoomMono = this.service.insert("Save test");
+
+        StepVerifier.create(this.repository.deleteAll()).verifyComplete();
+
         StepVerifier
                 .create(chatRoomMono)
                 .expectNextMatches(saved -> StringUtils.hasText(saved.getId()))
@@ -63,13 +77,17 @@ public class ChatRoomServiceTests {
 
     @Test
     public void getById() {
-        String test = "Get test";
-        Mono<ChatRoom> deleted = this.service
-                .insert(test)
-                .flatMap(saved -> this.service.get(saved.getId()));
-        StepVerifier
-                .create(deleted)
-                .expectNextMatches(chatRoom -> StringUtils.hasText(chatRoom.getId()) && test.equalsIgnoreCase(chatRoom.getName()))
-                .verifyComplete();
+
+        ChatRoom chatRoom = new ChatRoom("Test chat room");
+
+        Mono<ChatRoom> savedChatRoom = this.repository.save(chatRoom);
+
+        StepVerifier.create(this.repository.deleteAll()).verifyComplete();
+
+        StepVerifier.create(savedChatRoom).expectNext(chatRoom).verifyComplete();
+
+        Mono<ChatRoom> serviceChatRoom = this.service.get(chatRoom.getId());
+
+        StepVerifier.create(serviceChatRoom).expectNext(chatRoom).verifyComplete();
     }
 }

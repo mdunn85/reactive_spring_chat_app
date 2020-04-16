@@ -1,8 +1,5 @@
 package com.mattoverflow.reactive_chat.UserTests;
 
-import com.mattoverflow.reactive_chat.ChatRoom.ChatRoom;
-import com.mattoverflow.reactive_chat.ChatRoom.ChatRoomRepository;
-import com.mattoverflow.reactive_chat.ChatRoom.ChatRoomService;
 import com.mattoverflow.reactive_chat.User.User;
 import com.mattoverflow.reactive_chat.User.UserRepository;
 import com.mattoverflow.reactive_chat.User.UserService;
@@ -16,9 +13,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-import java.time.Duration;
-import java.util.UUID;
-import java.util.function.Predicate;
+import java.util.List;
 
 @Log4j2
 @DataMongoTest
@@ -38,26 +33,33 @@ public class UserServiceTests {
 
         log.info("running  " + this.getClass().getName());
 
-        Flux<User> saved = repository.saveAll(Flux.just(
+        List<User> usersList = List.of(
                 new User("Test User 1"),
                 new User("Test User 2"),
-                new User("Test User 3")));
+                new User("Test User 3")
+        );
 
-        Flux<User> composite = service.all().thenMany(saved);
+        Flux<User> savedUsers = this.repository.saveAll(usersList);
 
-        Predicate<User> match = user -> saved.any(saveItem -> saveItem.equals(user)).block(Duration.ofSeconds(10));
+        StepVerifier.create(this.repository.deleteAll()).verifyComplete();
 
-        StepVerifier
-                .create(composite)
-                .expectNextMatches(match)
-                .expectNextMatches(match)
-                .expectNextMatches(match)
+        StepVerifier.create(savedUsers).expectNextCount(3).verifyComplete();
+
+        Flux<User> allUsersFromService = service.all();
+
+        StepVerifier.create(allUsersFromService)
+                .expectNextMatches(usersList::contains)
+                .expectNextMatches(usersList::contains)
+                .expectNextMatches(usersList::contains)
                 .verifyComplete();
     }
 
     @Test
     public void save() {
         Mono<User> userMono = this.service.create("Save user test");
+
+        StepVerifier.create(this.repository.deleteAll()).verifyComplete();
+
         StepVerifier
                 .create(userMono)
                 .expectNextMatches(saved -> StringUtils.hasText(saved.getId()))
@@ -66,13 +68,19 @@ public class UserServiceTests {
 
     @Test
     public void getById() {
-        String test = "Get user test";
-        Mono<User> deleted = this.service
-                .create(test)
-                .flatMap(saved -> this.service.get(saved.getId()));
+        User user = new User("Test user");
+
+        Mono<User> savedUser = this.repository.save(user);
+
+        StepVerifier.create(this.repository.deleteAll()).verifyComplete();
+
         StepVerifier
-                .create(deleted)
-                .expectNextMatches(user -> StringUtils.hasText(user.getId()) && test.equalsIgnoreCase(user.getName()))
+                .create(savedUser)
+                .expectNext(user)
                 .verifyComplete();
+
+        Mono<User> serviceUser = this.service.get(user.getId());
+
+        StepVerifier.create(serviceUser).expectNext(user).verifyComplete();
     }
 }
