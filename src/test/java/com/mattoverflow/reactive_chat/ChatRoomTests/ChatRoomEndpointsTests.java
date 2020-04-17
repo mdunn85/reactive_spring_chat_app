@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -43,6 +44,7 @@ public class ChatRoomEndpointsTests {
                 .uri("/chat_rooms")
                 .exchange()
                 .expectStatus().isOk()
+                .expectHeader().contentType(MediaType.APPLICATION_JSON)
                 .expectBody()
                 .jsonPath("$.[0].id").isEqualTo(chatRoom1.getId())
                 .jsonPath("$.[0].name").isEqualTo(chatRoom1.getName())
@@ -56,6 +58,7 @@ public class ChatRoomEndpointsTests {
         Mockito
                 .when(this.repository.save(Mockito.any(ChatRoom.class)))
                 .thenReturn(Mono.just(data));
+
         this.webTestClient
                 .post()
                 .uri("/chat_rooms")
@@ -78,6 +81,7 @@ public class ChatRoomEndpointsTests {
                 .uri("/chat_rooms/" + data.getId())
                 .exchange()
                 .expectStatus().isOk()
+                .expectHeader().contentType(MediaType.APPLICATION_JSON)
                 .expectBody()
                 .jsonPath("$.id").isEqualTo(data.getId())
                 .jsonPath("$.name").isEqualTo(data.getName());
